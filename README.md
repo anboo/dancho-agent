@@ -1,5 +1,5 @@
-# Dango Agent
-Dancher agent - TCP local server for collect performance data
+# Dancho Agent
+Dancho agent - TCP local server for collect performance data
 
 ```
 Try this TCP server:
