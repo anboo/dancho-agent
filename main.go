@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"strings"
@@ -11,12 +12,12 @@ import (
 )
 
 type Rotation struct {
-	Name string
-	Duration int
-	Memory int
-	Origin float64
-	StartTime int
-	EndTime int
+	Name string `json:"name"`
+	Duration int `json:"duration"`
+	Memory int `json:"memory"`
+	Origin float64 `json:"origin"`
+	StartTime int `json:"start_time"`
+	EndTime int `json:"end_time"`
 }
 
 func handleConnection(c net.Conn) {
@@ -33,9 +34,13 @@ func handleConnection(c net.Conn) {
 		fmt.Printf("Received %s", temp)
 
 		var rotations []Rotation
-		json.Unmarshal([]byte(temp), &rotations)
+		unErr := json.Unmarshal([]byte(temp), &rotations); if unErr != nil {
+			log.Fatal(unErr)
+		}
 
-		c.Write([]byte("OK"))
+		_, errW := c.Write([]byte("OK")); if err != nil {
+			log.Fatal(errW)
+		}
 	}
 
 	c.Close()
