@@ -2,11 +2,13 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/op/go-logging"
 	"math/rand"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 )
@@ -20,6 +22,9 @@ type Rotation struct {
 	EndTime int `json:"end_time"`
 }
 
+var httpClient *http.Client
+var log = logging.MustGetLogger("example")
+
 func handleConnection(c net.Conn) {
 	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
 
@@ -30,16 +35,26 @@ func handleConnection(c net.Conn) {
 			return
 		}
 
-		temp := strings.TrimSpace(string(netData))
-		fmt.Printf("Received %s", temp)
+		received := strings.TrimSpace(string(netData))
+		bReceived := []byte(received)
+		fmt.Printf("Received %s", received)
 
 		var rotations []Rotation
-		unErr := json.Unmarshal([]byte(temp), &rotations); if unErr != nil {
-			log.Fatal(unErr)
+		unErr := json.Unmarshal(bReceived, &rotations); if unErr != nil {
+			log.Error(unErr)
 		}
 
+		req, err := http.NewRequest("POST", "http://127.0.0.1:8000/api/v1/rotations", bytes.NewBuffer(bReceived)); if err != nil {
+			log.Error("Error create HTTP request:" + err.Error())
+		}
+
+		resp, err := httpClient.Do(req); if err != nil {
+			log.Error("Error do request: " + err.Error())
+		}
+		defer resp.Body.Close()
+
 		_, errW := c.Write([]byte("OK")); if err != nil {
-			log.Fatal(errW)
+			log.Error(errW)
 		}
 	}
 
@@ -47,11 +62,13 @@ func handleConnection(c net.Conn) {
 }
 
 func main() {
-	PORT := ":8000"
+	PORT := ":7731"
 	l, err := net.Listen("tcp4", PORT); if err != nil {
 		fmt.Println(err)
 		return
 	}
+
+	httpClient = &http.Client{}
 
 	defer l.Close()
 	rand.Seed(time.Now().Unix())
