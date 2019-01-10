@@ -28,37 +28,45 @@ var log = logging.MustGetLogger("example")
 func handleConnection(c net.Conn) {
 	fmt.Printf("Serving %s\n", c.RemoteAddr().String())
 
+	defer c.Close()
+
 	for {
 		netData, err := bufio.NewReader(c).ReadString('\n')
 		if err != nil {
-			fmt.Println(err)
+			log.Error(err.Error())
 			return
 		}
 
 		received := strings.TrimSpace(string(netData))
 		bReceived := []byte(received)
-		fmt.Printf("Received %s", received)
+		log.Info("Received %s", received)
 
 		var rotations []Rotation
-		unErr := json.Unmarshal(bReceived, &rotations); if unErr != nil {
-			log.Error(unErr)
+		err = json.Unmarshal(bReceived, &rotations); if err != nil {
+			log.Error(err)
+			return
 		}
 
 		req, err := http.NewRequest("POST", "http://127.0.0.1:8000/api/v1/rotations", bytes.NewBuffer(bReceived)); if err != nil {
 			log.Error("Error create HTTP request:" + err.Error())
+			return
 		}
 
-		resp, err := httpClient.Do(req); if err != nil {
+		res, err := httpClient.Do(req); if err != nil {
 			log.Error("Error do request: " + err.Error())
+			return
 		}
-		defer resp.Body.Close()
 
-		_, errW := c.Write([]byte("OK")); if err != nil {
-			log.Error(errW)
+		if res != nil {
+			err = res.Body.Close(); if err != nil {
+				log.Error(err.Error())
+				return
+			}
+		} else {
+			log.Error("Error http request")
+			return
 		}
 	}
-
-	c.Close()
 }
 
 func main() {
